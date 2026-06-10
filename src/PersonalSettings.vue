@@ -39,6 +39,21 @@
       </span>
     </NcSettingsSection>
     <NcSettingsSection :name="t(appName, 'Mount Options')">
+      <div class="settings-option">
+        <input :id="id + '-mount-disabled'"
+               v-model="settings.mountDisabled"
+               type="checkbox"
+               class="checkbox"
+               :disabled="!!settings.mountDisabledAdmin"
+               @change="saveSetting('mountDisabled')"
+        >
+        <label :for="id + '-mount-disabled'">
+          {{ t(appName, 'disable mounting of archive files') }}
+        </label>
+      </div>
+      <span v-if="settings.mountDisabledAdmin" class="hint">
+        {{ t(appName, 'Mounting of archive files has been disabled by the administrator.') }}
+      </span>
       <TextField :value.sync="settings.mountPointTemplate"
                  :label="t(appName, 'Template for the default name of the mount point')"
                  :hint="t(appName, '{archiveFileName} will be replaced by the filename of the archive file without extensions.')"
@@ -168,6 +183,8 @@ const settings = reactive({
   mountPointTemplate: '{archiveFileName}',
   mountPointAutoRename: false,
   mountBackgroundJob: false,
+  mountDisabled: false,
+  mountDisabledAdmin: false,
   extractStripCommonPathPrefixDefault: false,
   extractTargetTemplate: '{archiveFileName}',
   extractTargetAutoRename: false,
