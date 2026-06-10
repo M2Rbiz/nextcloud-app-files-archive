@@ -55,28 +55,30 @@ subscribe('notifications:notification:received', (event: NotificationEvent) => {
   }
 });
 
-registerFileAction(new FileAction({
-  id: appName,
-  displayName(/* nodes: Node[], view: View */) {
-    return t(appName, 'Mount Archive');
-  },
-  title(/* files: Node[], view: View */) {
-    return t(appName, 'Mount Archive');
-  },
-  iconSvgInline(/* files: Node[], view: View) */) {
-    return logoSvg;
-  },
-  enabled(nodes: Node[]/* , view: View) */) {
-    if (nodes.length !== 1) {
-      return false;
-    }
-    const node = nodes[0];
-    if (!(node.permissions & Permission.READ)) {
-      return false;
-    }
-    return node.mime !== undefined && archiveMimeTypes.findIndex((mime) => mime === node.mime) >= 0;
-  },
-  exec: mount,
-  default: initialState?.mountByLeftClick ? DefaultType.DEFAULT : undefined,
-  order: -1000,
-}));
+if (!initialState?.mountDisabled) {
+  registerFileAction(new FileAction({
+    id: appName,
+    displayName(/* nodes: Node[], view: View */) {
+      return t(appName, 'Mount Archive');
+    },
+    title(/* files: Node[], view: View */) {
+      return t(appName, 'Mount Archive');
+    },
+    iconSvgInline(/* files: Node[], view: View) */) {
+      return logoSvg;
+    },
+    enabled(nodes: Node[]/* , view: View) */) {
+      if (nodes.length !== 1) {
+        return false;
+      }
+      const node = nodes[0];
+      if (!(node.permissions & Permission.READ)) {
+        return false;
+      }
+      return node.mime !== undefined && archiveMimeTypes.findIndex((mime) => mime === node.mime) >= 0;
+    },
+    exec: mount,
+    default: initialState?.mountByLeftClick ? DefaultType.DEFAULT : undefined,
+    order: -1000,
+  }));
+}

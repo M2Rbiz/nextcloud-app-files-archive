@@ -31,6 +31,23 @@
                  @submit="saveTextInput('archiveSizeLimit', settings.humanArchiveSizeLimit)"
       />
     </NcSettingsSection>
+    <NcSettingsSection :name="t(appName, 'Archive Mounting')">
+      <div class="settings-option">
+        <input id="files-archive-admin-mount-disabled"
+               v-model="settings.mountDisabled"
+               type="checkbox"
+               class="checkbox"
+               :disabled="loading"
+               @change="saveSetting('mountDisabled')"
+        >
+        <label for="files-archive-admin-mount-disabled">
+          {{ t(appName, 'disable mounting of archive files by default') }}
+        </label>
+      </div>
+      <span class="hint">
+        {{ t(appName, 'This only defines the default for all users, everybody may override it in the personal settings.') }}
+      </span>
+    </NcSettingsSection>
     <NcSettingsSection :name="t(appName, 'Diagnostics')" class="diagnostics">
       <h3>{{ t(appName, "Archive Formats") }}</h3>
       <!-- eslint-disable-next-line vue/no-v-html -->
@@ -57,6 +74,7 @@ import {
 import {
   fetchSettings,
   saveConfirmedSetting,
+  saveSimpleSetting,
 } from './toolkit/util/settings-sync.ts'
 import { generateUrl as generateAppUrl } from './toolkit/util/generate-url.ts'
 import TextField from '@rotdrop/nextcloud-vue-components/lib/components/TextFieldWithSubmitButton.vue'
@@ -69,6 +87,7 @@ const loading = ref(true)
 const settings = reactive({
   archiveSizeLimit: 1 << 32,
   humanArchiveSizeLimit: '',
+  mountDisabled: false,
 })
 
 const diagnostics = reactive({
@@ -90,6 +109,15 @@ const saveTextInput = async (settingsKey: string, value?: string, force?: boolea
     value = settings[settingsKey] || ''
   }
   return saveConfirmedSetting({ value, section: 'admin', settingsKey, force, settings })
+}
+
+const saveSetting = async (settingsKey: string) => {
+  if (loading.value) {
+    // avoid ping-pong by reactivity
+    logger.info('SKIPPING SETTINGS-SAVE DURING LOAD', settingsKey)
+    return
+  }
+  return saveSimpleSetting({ settingsKey, section: 'admin', settings })
 }
 
 const getFormatsMatrix = async () => {
