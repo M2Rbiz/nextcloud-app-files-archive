@@ -30,6 +30,18 @@
                  :disabled="loading"
                  @submit="saveTextInput('archiveSizeLimit', settings.humanArchiveSizeLimit)"
       />
+      <div class="settings-option">
+        <input id="files-archive-admin-extract-strip-common-prefix"
+               v-model="settings.extractStripCommonPathPrefixDefault"
+               type="checkbox"
+               class="checkbox"
+               :disabled="loading"
+               @change="saveSetting('extractStripCommonPathPrefixDefault')"
+        >
+        <label for="files-archive-admin-extract-strip-common-prefix">
+          {{ t(appName, 'strip common path prefix by default (instance default, can be overridden by each user)') }}
+        </label>
+      </div>
     </NcSettingsSection>
     <NcSettingsSection :name="t(appName, 'Archive Mounting')">
       <div class="settings-option">
@@ -42,6 +54,18 @@
         >
         <label for="files-archive-admin-mount-disabled">
           {{ t(appName, 'disable mounting of archive files for all users') }}
+        </label>
+      </div>
+      <div class="settings-option">
+        <input id="files-archive-admin-mount-strip-common-prefix"
+               v-model="settings.mountStripCommonPathPrefixDefault"
+               type="checkbox"
+               class="checkbox"
+               :disabled="loading"
+               @change="saveSetting('mountStripCommonPathPrefixDefault')"
+        >
+        <label for="files-archive-admin-mount-strip-common-prefix">
+          {{ t(appName, 'strip common path prefix by default (instance default, can be overridden by each user)') }}
         </label>
       </div>
     </NcSettingsSection>
@@ -85,6 +109,8 @@ const settings = reactive({
   archiveSizeLimit: 1 << 32,
   humanArchiveSizeLimit: '',
   mountDisabled: false,
+  mountStripCommonPathPrefixDefault: false,
+  extractStripCommonPathPrefixDefault: false,
 })
 
 const diagnostics = reactive({

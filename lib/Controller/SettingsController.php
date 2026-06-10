@@ -60,11 +60,15 @@ class SettingsController extends Controller
   const ADMIN_SETTINGS = [
     self::ARCHIVE_SIZE_LIMIT => [ 'rw' => true, 'default' => self::DEFAULT_ADMIN_ARCHIVE_SIZE_LIMIT ],
     self::MOUNT_DISABLED => [ 'rw' => true, 'default' => self::MOUNT_DISABLED_DEFAULT ],
+    self::MOUNT_STRIP_COMMON_PATH_PREFIX_DEFAULT => [ 'rw' => true, 'default' => false ],
+    self::EXTRACT_STRIP_COMMON_PATH_PREFIX_DEFAULT => [ 'rw' => true, 'default' => false ],
   ];
 
   public const MOUNT_STRIP_COMMON_PATH_PREFIX_DEFAULT = 'mountStripCommonPathPrefixDefault';
+  public const MOUNT_STRIP_COMMON_PATH_PREFIX_DEFAULT_ADMIN = self::MOUNT_STRIP_COMMON_PATH_PREFIX_DEFAULT . self::ADMIN_SETTING;
 
   public const EXTRACT_STRIP_COMMON_PATH_PREFIX_DEFAULT = 'extractStripCommonPathPrefixDefault';
+  public const EXTRACT_STRIP_COMMON_PATH_PREFIX_DEFAULT_ADMIN = self::EXTRACT_STRIP_COMMON_PATH_PREFIX_DEFAULT . self::ADMIN_SETTING;
 
   public const MOUNT_POINT_AUTO_RENAME = 'mountPointAutoRename';
 
@@ -100,7 +104,9 @@ class SettingsController extends Controller
     self::ARCHIVE_SIZE_LIMIT => [ 'rw' => true, ],
     self::ARCHIVE_SIZE_LIMIT_ADMIN => [ 'rw' => false, 'default' => self::DEFAULT_ADMIN_ARCHIVE_SIZE_LIMIT ],
     self::MOUNT_STRIP_COMMON_PATH_PREFIX_DEFAULT => [ 'rw' => true, 'default' => false, ],
+    self::MOUNT_STRIP_COMMON_PATH_PREFIX_DEFAULT_ADMIN => [ 'rw' => false, 'default' => false, ],
     self::EXTRACT_STRIP_COMMON_PATH_PREFIX_DEFAULT => [ 'rw' => true, 'default' => false, ],
+    self::EXTRACT_STRIP_COMMON_PATH_PREFIX_DEFAULT_ADMIN => [ 'rw' => false, 'default' => false, ],
     self::MOUNT_POINT_AUTO_RENAME => [ 'rw' => true, 'default' => false, ],
     self::EXTRACT_TARGET_AUTO_RENAME => [ 'rw' => true, 'default' => false, ],
     self::MOUNT_POINT_TEMPLATE => [ 'rw' => true, 'default' => self::FOLDER_TEMPLATE_DEFAULT ],
@@ -160,6 +166,8 @@ class SettingsController extends Controller
         }
         break;
       case self::MOUNT_DISABLED:
+      case self::MOUNT_STRIP_COMMON_PATH_PREFIX_DEFAULT:
+      case self::EXTRACT_STRIP_COMMON_PATH_PREFIX_DEFAULT:
         $newValue = filter_var($value, FILTER_VALIDATE_BOOLEAN, ['flags' => FILTER_NULL_ON_FAILURE]);
         if ($newValue === null) {
           return self::grumble(
@@ -234,6 +242,8 @@ class SettingsController extends Controller
           }
           break;
         case self::MOUNT_DISABLED:
+        case self::MOUNT_STRIP_COMMON_PATH_PREFIX_DEFAULT:
+        case self::EXTRACT_STRIP_COMMON_PATH_PREFIX_DEFAULT:
           $value = (bool)$value;
           $humanValue = $value;
           break;
@@ -286,13 +296,11 @@ class SettingsController extends Controller
         }
         break;
       case self::EXTRACT_BACKGROUND_JOB:
-      case self::EXTRACT_STRIP_COMMON_PATH_PREFIX_DEFAULT:
       case self::EXTRACT_TARGET_AUTO_RENAME:
       case self::MOUNT_BACKGROUND_JOB:
       case self::MOUNT_BY_LEFT_CLICK:
       case self::MOUNT_DISABLED:
       case self::MOUNT_POINT_AUTO_RENAME:
-      case self::MOUNT_STRIP_COMMON_PATH_PREFIX_DEFAULT:
         $newValue = filter_var($value, FILTER_VALIDATE_BOOLEAN, ['flags' => FILTER_NULL_ON_FAILURE]);
         if ($newValue === null) {
           return self::grumble(
@@ -301,6 +309,25 @@ class SettingsController extends Controller
             ]));
         }
         if ($newValue === (self::PERSONAL_SETTINGS[$setting]['default'] ?? false)) {
+          $newValue = null;
+        } else {
+          $newValue = (int)$newValue;
+        }
+        break;
+      case self::EXTRACT_STRIP_COMMON_PATH_PREFIX_DEFAULT:
+      case self::MOUNT_STRIP_COMMON_PATH_PREFIX_DEFAULT:
+        // the instance-wide default of these can be configured by the administrator
+        $newValue = filter_var($value, FILTER_VALIDATE_BOOLEAN, ['flags' => FILTER_NULL_ON_FAILURE]);
+        if ($newValue === null) {
+          return self::grumble(
+            $this->l->t('Value "%1$s" for setting "%2$s" is not convertible to boolean.', [
+              $value, $setting,
+            ]));
+        }
+        $adminDefault = filter_var(
+          $this->config->getAppValue($this->appName, $setting, self::PERSONAL_SETTINGS[$setting]['default'] ?? false),
+          FILTER_VALIDATE_BOOLEAN);
+        if ($newValue === $adminDefault) {
           $newValue = null;
         } else {
           $newValue = (int)$newValue;
@@ -330,7 +357,17 @@ class SettingsController extends Controller
 
     if ($newValue === null) {
       $this->config->deleteUserValue($this->userId, $this->appName, $setting);
-      $newValue = self::PERSONAL_SETTINGS[$setting]['default'] ?? null;
+      switch ($setting) {
+        case self::EXTRACT_STRIP_COMMON_PATH_PREFIX_DEFAULT:
+        case self::MOUNT_STRIP_COMMON_PATH_PREFIX_DEFAULT:
+          // report the effective instance-wide default back
+          $newValue = filter_var(
+            $this->config->getAppValue($this->appName, $setting, self::PERSONAL_SETTINGS[$setting]['default'] ?? false),
+            FILTER_VALIDATE_BOOLEAN);
+          break;
+        default:
+          $newValue = self::PERSONAL_SETTINGS[$setting]['default'] ?? null;
+      }
     } else {
       $this->config->setUserValue($this->userId, $this->appName, $setting, $newValue);
     }
@@ -380,11 +417,15 @@ class SettingsController extends Controller
           self::ADMIN_SETTINGS[$adminKey]['default'] ?? null,
         );
       } else {
-        $value = $this->config->getUserValue(
-          $this->userId,
-          $this->appName,
-          $oneSetting,
-          self::PERSONAL_SETTINGS[$oneSetting]['default'] ?? null);
+        $default = self::PERSONAL_SETTINGS[$oneSetting]['default'] ?? null;
+        switch ($oneSetting) {
+          case self::EXTRACT_STRIP_COMMON_PATH_PREFIX_DEFAULT:
+          case self::MOUNT_STRIP_COMMON_PATH_PREFIX_DEFAULT:
+            // the instance-wide default of these can be configured by the administrator
+            $default = $this->config->getAppValue($this->appName, $oneSetting, $default);
+            break;
+        }
+        $value = $this->config->getUserValue($this->userId, $this->appName, $oneSetting, $default);
       }
       $humanValue = $value;
       switch ($oneSetting) {
@@ -397,8 +438,16 @@ class SettingsController extends Controller
             $humanValue = '';
           }
           break;
-        case self::EXTRACT_BACKGROUND_JOB:
         case self::EXTRACT_STRIP_COMMON_PATH_PREFIX_DEFAULT:
+        case self::EXTRACT_STRIP_COMMON_PATH_PREFIX_DEFAULT_ADMIN:
+        case self::MOUNT_STRIP_COMMON_PATH_PREFIX_DEFAULT:
+        case self::MOUNT_STRIP_COMMON_PATH_PREFIX_DEFAULT_ADMIN:
+          // the user value may be an explicit "0" overriding the
+          // instance-wide default, make sure to emit real booleans
+          $value = filter_var($value, FILTER_VALIDATE_BOOLEAN);
+          $humanValue = $value;
+          break;
+        case self::EXTRACT_BACKGROUND_JOB:
         case self::EXTRACT_TARGET_AUTO_RENAME:
         case self::EXTRACT_TARGET_TEMPLATE:
         case self::MOUNT_BACKGROUND_JOB:
@@ -407,7 +456,6 @@ class SettingsController extends Controller
         case self::MOUNT_DISABLED_ADMIN:
         case self::MOUNT_POINT_AUTO_RENAME:
         case self::MOUNT_POINT_TEMPLATE:
-        case self::MOUNT_STRIP_COMMON_PATH_PREFIX_DEFAULT:
           break;
         default:
           return self::grumble($this->l->t('Unknown personal setting: "%1$s"', $oneSetting));
