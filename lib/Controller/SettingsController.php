@@ -60,11 +60,15 @@ class SettingsController extends Controller
   const ADMIN_SETTINGS = [
     self::ARCHIVE_SIZE_LIMIT => [ 'rw' => true, 'default' => self::DEFAULT_ADMIN_ARCHIVE_SIZE_LIMIT ],
     self::MOUNT_DISABLED => [ 'rw' => true, 'default' => self::MOUNT_DISABLED_DEFAULT ],
+    self::MOUNT_STRIP_COMMON_PATH_PREFIX_DEFAULT => [ 'rw' => true, 'default' => false ],
+    self::EXTRACT_STRIP_COMMON_PATH_PREFIX_DEFAULT => [ 'rw' => true, 'default' => false ],
   ];
 
   public const MOUNT_STRIP_COMMON_PATH_PREFIX_DEFAULT = 'mountStripCommonPathPrefixDefault';
+  public const MOUNT_STRIP_COMMON_PATH_PREFIX_DEFAULT_ADMIN = self::MOUNT_STRIP_COMMON_PATH_PREFIX_DEFAULT . self::ADMIN_SETTING;
 
   public const EXTRACT_STRIP_COMMON_PATH_PREFIX_DEFAULT = 'extractStripCommonPathPrefixDefault';
+  public const EXTRACT_STRIP_COMMON_PATH_PREFIX_DEFAULT_ADMIN = self::EXTRACT_STRIP_COMMON_PATH_PREFIX_DEFAULT . self::ADMIN_SETTING;
 
   public const MOUNT_POINT_AUTO_RENAME = 'mountPointAutoRename';
 
@@ -100,7 +104,9 @@ class SettingsController extends Controller
     self::ARCHIVE_SIZE_LIMIT => [ 'rw' => true, ],
     self::ARCHIVE_SIZE_LIMIT_ADMIN => [ 'rw' => false, 'default' => self::DEFAULT_ADMIN_ARCHIVE_SIZE_LIMIT ],
     self::MOUNT_STRIP_COMMON_PATH_PREFIX_DEFAULT => [ 'rw' => true, 'default' => false, ],
+    self::MOUNT_STRIP_COMMON_PATH_PREFIX_DEFAULT_ADMIN => [ 'rw' => false, 'default' => false, ],
     self::EXTRACT_STRIP_COMMON_PATH_PREFIX_DEFAULT => [ 'rw' => true, 'default' => false, ],
+    self::EXTRACT_STRIP_COMMON_PATH_PREFIX_DEFAULT_ADMIN => [ 'rw' => false, 'default' => false, ],
     self::MOUNT_POINT_AUTO_RENAME => [ 'rw' => true, 'default' => false, ],
     self::EXTRACT_TARGET_AUTO_RENAME => [ 'rw' => true, 'default' => false, ],
     self::MOUNT_POINT_TEMPLATE => [ 'rw' => true, 'default' => self::FOLDER_TEMPLATE_DEFAULT ],
@@ -160,6 +166,8 @@ class SettingsController extends Controller
         }
         break;
       case self::MOUNT_DISABLED:
+      case self::MOUNT_STRIP_COMMON_PATH_PREFIX_DEFAULT:
+      case self::EXTRACT_STRIP_COMMON_PATH_PREFIX_DEFAULT:
         $newValue = filter_var($value, FILTER_VALIDATE_BOOLEAN, ['flags' => FILTER_NULL_ON_FAILURE]);
         if ($newValue === null) {
           return self::grumble(
@@ -234,6 +242,8 @@ class SettingsController extends Controller
           }
           break;
         case self::MOUNT_DISABLED:
+        case self::MOUNT_STRIP_COMMON_PATH_PREFIX_DEFAULT:
+        case self::EXTRACT_STRIP_COMMON_PATH_PREFIX_DEFAULT:
           $value = (bool)$value;
           $humanValue = $value;
           break;
@@ -286,12 +296,10 @@ class SettingsController extends Controller
         }
         break;
       case self::EXTRACT_BACKGROUND_JOB:
-      case self::EXTRACT_STRIP_COMMON_PATH_PREFIX_DEFAULT:
       case self::EXTRACT_TARGET_AUTO_RENAME:
       case self::MOUNT_BACKGROUND_JOB:
       case self::MOUNT_BY_LEFT_CLICK:
       case self::MOUNT_POINT_AUTO_RENAME:
-      case self::MOUNT_STRIP_COMMON_PATH_PREFIX_DEFAULT:
         $newValue = filter_var($value, FILTER_VALIDATE_BOOLEAN, ['flags' => FILTER_NULL_ON_FAILURE]);
         if ($newValue === null) {
           return self::grumble(
@@ -305,10 +313,12 @@ class SettingsController extends Controller
           $newValue = (int)$newValue;
         }
         break;
+      case self::EXTRACT_STRIP_COMMON_PATH_PREFIX_DEFAULT:
       case self::MOUNT_DISABLED:
+      case self::MOUNT_STRIP_COMMON_PATH_PREFIX_DEFAULT:
         $oldValue = filter_var(
           $this->config->getUserValue(
-            $this->userId, $this->appName, $setting, $this->mountDisabledDefault()),
+            $this->userId, $this->appName, $setting, $this->administrativeDefault($setting)),
           FILTER_VALIDATE_BOOLEAN);
         $newValue = filter_var($value, FILTER_VALIDATE_BOOLEAN, ['flags' => FILTER_NULL_ON_FAILURE]);
         if ($newValue === null) {
@@ -395,13 +405,15 @@ class SettingsController extends Controller
           $adminKey,
           self::ADMIN_SETTINGS[$adminKey]['default'] ?? null,
         );
-      } elseif ($oneSetting === self::MOUNT_DISABLED) {
+      } elseif ($oneSetting === self::MOUNT_DISABLED
+                || $oneSetting === self::MOUNT_STRIP_COMMON_PATH_PREFIX_DEFAULT
+                || $oneSetting === self::EXTRACT_STRIP_COMMON_PATH_PREFIX_DEFAULT) {
         // the administrative value is only the default for the personal one
         $value = $this->config->getUserValue(
           $this->userId,
           $this->appName,
           $oneSetting,
-          $this->mountDisabledDefault());
+          $this->administrativeDefault($oneSetting));
       } else {
         $value = $this->config->getUserValue(
           $this->userId,
@@ -420,22 +432,24 @@ class SettingsController extends Controller
             $humanValue = '';
           }
           break;
+        case self::EXTRACT_STRIP_COMMON_PATH_PREFIX_DEFAULT:
+        case self::EXTRACT_STRIP_COMMON_PATH_PREFIX_DEFAULT_ADMIN:
         case self::MOUNT_DISABLED:
         case self::MOUNT_DISABLED_ADMIN:
+        case self::MOUNT_STRIP_COMMON_PATH_PREFIX_DEFAULT:
+        case self::MOUNT_STRIP_COMMON_PATH_PREFIX_DEFAULT_ADMIN:
           // the personal value may be an explicit "0" overriding the
           // administrative default, make sure to emit real booleans
           $value = filter_var($value, FILTER_VALIDATE_BOOLEAN);
           $humanValue = $value;
           break;
         case self::EXTRACT_BACKGROUND_JOB:
-        case self::EXTRACT_STRIP_COMMON_PATH_PREFIX_DEFAULT:
         case self::EXTRACT_TARGET_AUTO_RENAME:
         case self::EXTRACT_TARGET_TEMPLATE:
         case self::MOUNT_BACKGROUND_JOB:
         case self::MOUNT_BY_LEFT_CLICK:
         case self::MOUNT_POINT_AUTO_RENAME:
         case self::MOUNT_POINT_TEMPLATE:
-        case self::MOUNT_STRIP_COMMON_PATH_PREFIX_DEFAULT:
           break;
         default:
           return self::grumble($this->l->t('Unknown personal setting: "%1$s"', $oneSetting));
@@ -455,15 +469,18 @@ class SettingsController extends Controller
   }
 
   /**
-   * The administrative setting for the mount-disabled switch only defines the
-   * default for the users, who may override it in both directions.
+   * The administrative settings which also exist as personal settings only
+   * define the instance-wide default, the users may override them in both
+   * directions.
+   *
+   * @param string $setting
    *
    * @return bool
    */
-  private function mountDisabledDefault():bool
+  private function administrativeDefault(string $setting):bool
   {
     return (bool)$this->config->getAppValue(
-      $this->appName, self::MOUNT_DISABLED, self::MOUNT_DISABLED_DEFAULT);
+      $this->appName, $setting, self::ADMIN_SETTINGS[$setting]['default'] ?? false);
   }
 
   /**
