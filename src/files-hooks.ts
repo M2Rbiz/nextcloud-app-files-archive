@@ -28,6 +28,7 @@ import logger from './console.ts';
 import logoSvg from '../img/app.svg?raw';
 import type { InitialState } from './types/initial-state.d.ts';
 import mount from './services/mount.ts';
+import extract from './services/extract.ts';
 
 require('./webpack-setup.ts');
 
@@ -82,3 +83,28 @@ if (!initialState?.mountDisabled) {
     order: -1000,
   }));
 }
+
+registerFileAction(new FileAction({
+  id: appName + '-extract',
+  displayName(/* nodes: Node[], view: View */) {
+    return t(appName, 'Extract here');
+  },
+  title(/* files: Node[], view: View */) {
+    return t(appName, 'Extract the archive to a new folder in the current directory');
+  },
+  iconSvgInline(/* files: Node[], view: View) */) {
+    return logoSvg;
+  },
+  enabled(nodes: Node[]/* , view: View) */) {
+    if (nodes.length !== 1) {
+      return false;
+    }
+    const node = nodes[0];
+    if (!(node.permissions & Permission.READ)) {
+      return false;
+    }
+    return node.mime !== undefined && archiveMimeTypes.findIndex((mime) => mime === node.mime) >= 0;
+  },
+  exec: extract,
+  order: -999,
+}));
