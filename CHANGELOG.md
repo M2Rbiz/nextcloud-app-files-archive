@@ -4,6 +4,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [1.2.9-dev1] -- 2026-06-23
+
+### Added
+
+- admin and personal setting to disable the mounting of archive files.
+- "Extract here" entry in the file-actions menu.
+- admin defaults for the strip-common-path-prefix options.
+
+### Fixed
+
+- rework the MIME-type registration repair step: register the archive
+  extension to MIME-type mappings at runtime, update the MIME-type
+  database and the filecache of existing archives through the public
+  IMimeTypeLoader API, and only touch config/mimetypealiases.json when an
+  icon alias is actually missing. This fixes the repair step crashing or
+  silently doing nothing on instances without a custom
+  config/mimetypemapping.json.
+- prefilling of the target basename in the FilePrefixPicker.
+- avoid a double slash in the default target path for top-level archives.
+- pass a numeric node id to the @nextcloud/files Node constructor.
+
+### Changed
+
+- switch from the deprecated IAppContainer dependency injection to the
+  PSR ContainerInterface.
+- ArchiveStorage: account for the Nextcloud version-string format
+  diversion.
+
 ## [1.2.8] -- 2025-10-15
 
 ### Added
