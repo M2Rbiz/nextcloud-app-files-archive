@@ -167,7 +167,7 @@ const getDriversStatus = async () => {
   try {
     const response = await axios.get(generateAppUrl('diagnostics/archive/drivers'))
     diagnostics.drivers = response?.data?.html || null
-    if (!diagnostics.formats) {
+    if (!diagnostics.drivers) {
       logger.error('UNEXPECTED RESPONSE', response)
     }
     return
