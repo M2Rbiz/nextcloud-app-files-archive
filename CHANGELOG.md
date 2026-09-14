@@ -10,6 +10,56 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - prefilling of target basename in FilePrefixPicker
 
+## [1.2.9-dev2] -- 2026-09-14
+
+Pre-release build of the M2Rbiz fork, on top of the current upstream
+stable32 branch. Changes since 1.2.8:
+
+### Added
+
+- admin and personal setting to disable the mounting of archive
+  files. The admin setting only provides the default, every user may
+  override it in the personal settings in both directions. Extraction
+  stays available, existing mounts can still be accessed and unmounted.
+- "Extract here" entry in the file-actions menu, extracting the
+  archive to a new folder in the current directory.
+- admin defaults for the strip-common-path-prefix options, which users
+  may override in their personal settings.
+- tarball generation on vX.Y.Z tag push.
+
+### Fixed
+
+- silent data loss when extracting archives whose member names mix
+  Unicode normalization forms (NFC/NFD, e.g. created on macOS): every
+  member is now extracted, and members which collapse onto the same
+  name are reported with a warning instead of being dropped silently.
+  See https://github.com/rotdrop/nextcloud-app-files-archive/issues/71.
+- rework the MIME-type registration repair step: register the archive
+  extension to MIME-type mappings at runtime, update the MIME-type
+  database and the filecache of existing archives through the public
+  IMimeTypeLoader API, and only touch config/mimetypealiases.json when an
+  icon alias is actually missing. This fixes the repair step crashing or
+  silently doing nothing on instances without a custom
+  config/mimetypemapping.json.
+- background extraction of archives (missing initialization of the
+  target name template).
+- the strip-common-path-prefix option of extraction requests now falls
+  back to the configured default instead of a hard-coded false.
+- spurious "UNEXPECTED RESPONSE" error in the admin settings when
+  checking the archive drivers.
+- production build emitting no JavaScript assets.
+- prefilling of the target basename in the FilePrefixPicker.
+- avoid a double slash in the default target path for top-level archives.
+- pass a numeric node id to the @nextcloud/files Node constructor.
+- translations courtesy of the Nextcloud language team
+
+### Changed
+
+- switch from the deprecated IAppContainer dependency injection to the
+  PSR ContainerInterface.
+- ArchiveStorage: account for the Nextcloud version-string format
+  diversion.
+
 ## [1.2.8] -- 2025-10-15
 
 ### Added
